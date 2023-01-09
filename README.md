@@ -1,7 +1,7 @@
 # jBREAD
 
-**jBread** is a simple interpreted programming I'm creating to learn more about
-interpretors and how to design them. I probably won't fully complete this project
+**jBread** is a simple interpreted language, I'm creating to learn more about
+interpreters and how to design them. I probably won't fully complete this project
 to be a functional language, but I have hopes that I'll make it atleast usable
 upto some extent.
 
