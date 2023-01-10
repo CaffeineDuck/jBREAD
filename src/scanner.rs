@@ -1,18 +1,22 @@
-use std::collections::HashMap;
+use lazy_static::lazy_static;
+use std::{collections::HashMap, slice::Iter};
 
-use crate::{token::Token, JuniorBread, TokenTypes};
+use crate::{
+    token::{Literal as LiteralEnum, Token},
+    JuniorBread, TokenTypes,
+};
 
 #[derive(Debug)]
 pub struct Scanner {
-    source: String,
     tokens: Vec<Token>,
+    source: String,
     start: usize,
     current: usize,
     line: u32,
 }
 
-impl Scanner {
-    const KEYWORDS_MAP: HashMap<&str, TokenTypes> = {
+lazy_static! {
+    static ref KEYWORDS_MAP: HashMap<&'static str, TokenTypes> = {
         let mut map = HashMap::new();
         map.insert("and", TokenTypes::And);
         map.insert("class", TokenTypes::Class);
@@ -32,7 +36,9 @@ impl Scanner {
         map.insert("while", TokenTypes::While);
         map
     };
+}
 
+impl Scanner {
     pub fn new(source: &str) -> Self {
         Self {
             source: source.to_string(),
@@ -43,17 +49,14 @@ impl Scanner {
         }
     }
 
-    pub fn scan_tokens(&mut self) {
+    pub fn scan_tokens(&mut self) -> Iter<'_, Token> {
         while !self.is_at_end() {
             self.start = self.current;
             self.scan_single_token();
         }
-        self.tokens.push(Token::new(
-            TokenTypes::Eof,
-            "".to_string(),
-            "".to_string(),
-            self.line,
-        ));
+        self.tokens
+            .push(Token::new(TokenTypes::Eof, "".to_string(), None, self.line));
+        self.tokens.iter()
     }
 
     fn is_at_end(&self) -> bool {
@@ -115,7 +118,7 @@ impl Scanner {
             ' ' => (),
             '\n' => self.line += 1,
             ('0'..='9') => self.number(),
-            ('a'..='z') | ('A'..='Z') | ('0'..='9') | '_' => self.identifier(),
+            ('a'..='z') | ('A'..='Z') | '_' => self.identifier(),
             _ => JuniorBread::error(self.line, "Unexpected character."),
         };
     }
@@ -125,10 +128,10 @@ impl Scanner {
             self.advance();
         }
         let text = self.source[self.start..self.current].to_string();
-        let token_type = Scanner::KEYWORDS_MAP
-            .get(&text.as_str())
-            .unwrap_or(&TokenTypes::Identifier);
-        self.add_token(*token_type);
+        match KEYWORDS_MAP.get(&text.as_str()).clone() {
+            Some(token_type) => self.add_token(token_type.to_owned()),
+            None => self.add_token(TokenTypes::Identifier),
+        }
     }
 
     fn number(&mut self) {
@@ -142,7 +145,10 @@ impl Scanner {
             }
         }
         let number = self.source[self.start..self.current].to_string();
-        self.add_token_with_value(TokenTypes::Number, number);
+        self.add_token_with_value(
+            TokenTypes::Number,
+            LiteralEnum::Number(number.parse::<f64>().unwrap()),
+        );
     }
 
     fn string(&mut self) {
@@ -158,7 +164,7 @@ impl Scanner {
         }
         self.advance();
         let value = self.source[self.start + 1..self.current - 1].to_string();
-        self.add_token_with_value(TokenTypes::String, value);
+        self.add_token_with_value(TokenTypes::String, LiteralEnum::String(value));
     }
 
     fn peek(&self) -> char {
@@ -197,12 +203,12 @@ impl Scanner {
     fn add_token(&mut self, token_type: TokenTypes) {
         let text = self.source[self.start..self.current].to_string();
         self.tokens
-            .push(Token::new(token_type, text, "".to_string(), self.line));
+            .push(Token::new(token_type, text, None, self.line));
     }
 
-    fn add_token_with_value<T>(&mut self, token_type: TokenTypes, literal: T) {
+    fn add_token_with_value(&mut self, token_type: TokenTypes, literal: LiteralEnum) {
         let text = self.source[self.start..self.current].to_string();
         self.tokens
-            .push(Token::new(token_type, text, literal, self.line));
+            .push(Token::new(token_type, text, Some(literal), self.line));
     }
 }

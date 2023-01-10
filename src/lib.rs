@@ -1,64 +1,22 @@
+#![feature(const_mut_refs)]
+
+#[macro_use]
+
+mod ast;
 mod scanner;
 mod token;
+mod tool;
 
+pub use scanner::*;
+pub use token::*;
+pub use tool::*;
+
+use scanner::Scanner;
 use std::{
     fs::File,
     io::{self, Read},
     sync::Mutex,
 };
-
-use scanner::Scanner;
-
-#[derive(Debug, Clone)]
-pub enum TokenTypes {
-    // Single-character tokens.
-    LeftParen,
-    RightParen,
-    LeftBrace,
-    RightBrace,
-    Comma,
-    Dot,
-    Minus,
-    Plus,
-    Semicolon,
-    Slash,
-    Star,
-
-    // One or two character tokens.
-    Bang,
-    BangEqual,
-    Equal,
-    EqualEqual,
-    Greater,
-    GreaterEqual,
-    Less,
-    LessEqual,
-
-    // Literals.
-    Identifier,
-    String,
-    Number,
-
-    // Keywords.
-    And,
-    Class,
-    Else,
-    False,
-    Fun,
-    For,
-    If,
-    Nil,
-    Or,
-    Print,
-    Return,
-    Super,
-    This,
-    True,
-    Var,
-    While,
-
-    Eof,
-}
 
 pub struct JuniorBread {
     has_error: bool,
@@ -100,8 +58,7 @@ impl JuniorBread {
 
     pub fn run(&self, source: &str) {
         let mut scanner = Scanner::new(source);
-        let tokens = scanner.scan_tokens();
-        for token in tokens {
+        for token in scanner.scan_tokens() {
             println!("{:?}", token);
         }
     }
