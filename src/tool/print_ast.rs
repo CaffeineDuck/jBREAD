@@ -25,6 +25,7 @@ impl Visitor for AstPrinter {
             match literal {
                 LiteralEnum::String(s) => s.clone(),
                 LiteralEnum::Number(n) => n.to_string(),
+                LiteralEnum::Boolean(boolean) => boolean.to_string(),
             }
         } else {
             "nil".to_string()
@@ -63,16 +64,10 @@ impl Default for AstPrinter {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{ast::Expr, scanner::Scanner, Token, TokenTypes};
+    use crate::{ast::Expr, Token, TokenTypes};
 
     #[test]
     fn test_creation() {
-        let mut scanner = Scanner::new("1 + 2");
-        let tokens = scanner.scan_tokens().collect::<Vec<&Token>>();
-        for token in tokens.into_iter() {
-            println!("{:?}", token);
-        }
-
         let expr = Expr::Binary(Binary {
             right: Box::new(Expr::Binary(Binary {
                 right: Box::new(Expr::Literal(Literal {

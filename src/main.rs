@@ -1,3 +1,6 @@
+use j_bread::JuniorBread;
+
 fn main() {
-    println!("Hello, world!");
+    let bread = JuniorBread::new();
+    bread.run_prompt();
 }

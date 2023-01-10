@@ -1,7 +1,8 @@
 use lazy_static::lazy_static;
-use std::{collections::HashMap, slice::Iter};
+use std::collections::HashMap;
 
 use crate::{
+    errors::{Error, JBreadErrors},
     token::{Literal as LiteralEnum, Token},
     JuniorBread, TokenTypes,
 };
@@ -61,14 +62,14 @@ impl Scanner {
         }
     }
 
-    pub fn scan_tokens(&mut self) -> Iter<'_, Token> {
+    pub fn scan_tokens(&mut self) -> &Vec<Token> {
         while !self.is_at_end() {
             self.start = self.current;
             self.scan_single_token();
         }
         self.tokens
             .push(Token::new(TokenTypes::Eof, "".to_string(), None, self.line));
-        self.tokens.iter()
+        &self.tokens
     }
 
     fn is_at_end(&self) -> bool {
@@ -132,7 +133,11 @@ impl Scanner {
             '"' => self.string(),
             ('0'..='9') => self.number(),
             ('a'..='z') | ('A'..='Z') | '_' => self.identifier(),
-            _ => JuniorBread::error(self.line, "Unexpected character."),
+            _ => JuniorBread::error(JBreadErrors::ParseError(Error::new(
+                self.line,
+                "".to_string(),
+                "Unexpected character.".to_string(),
+            ))),
         };
     }
 
@@ -172,7 +177,11 @@ impl Scanner {
             self.advance();
         }
         if self.is_at_end() {
-            JuniorBread::error(self.line, "Unterminated string.");
+            JuniorBread::error(JBreadErrors::ParseError(Error::new(
+                self.line,
+                "".to_string(),
+                "Unterminated string.".to_string(),
+            )));
             return;
         }
         self.advance();
@@ -233,30 +242,30 @@ mod tests {
     #[test]
     fn test_scanner_addition() {
         let mut scanner = Scanner::new("1 + 2");
-        let tokens = scanner.scan_tokens().collect::<Vec<&Token>>();
+        let tokens = scanner.scan_tokens();
         assert_eq!(tokens.len(), 4);
         assert_eq!(
             tokens,
-            vec![
-                &Token {
+            &vec![
+                Token {
                     token_type: TokenTypes::Number,
                     literal: Some(LiteralEnum::Number(1.0)),
                     lexeme: "1".to_string(),
                     line: 1
                 },
-                &Token {
+                Token {
                     token_type: TokenTypes::Plus,
                     literal: None,
                     lexeme: "+".to_string(),
                     line: 1
                 },
-                &Token {
+                Token {
                     token_type: TokenTypes::Number,
                     literal: Some(LiteralEnum::Number(2.0)),
                     lexeme: "2".to_string(),
                     line: 1
                 },
-                &Token {
+                Token {
                     token_type: TokenTypes::Eof,
                     literal: None,
                     lexeme: "".to_string(),
@@ -269,11 +278,11 @@ mod tests {
     #[test]
     fn test_scanner_comments() {
         let mut scanner = Scanner::new("// This is a comment");
-        let tokens: Vec<&Token> = scanner.scan_tokens().collect();
+        let tokens = scanner.scan_tokens();
         assert_eq!(tokens.len(), 1);
         assert_eq!(
             tokens,
-            vec![&Token {
+            &vec![Token {
                 token_type: TokenTypes::Eof,
                 literal: None,
                 lexeme: "".to_string(),
@@ -285,18 +294,18 @@ mod tests {
     #[test]
     fn test_scanner_string() {
         let mut scanner = Scanner::new("\"This is a string\"");
-        let tokens: Vec<&Token> = scanner.scan_tokens().collect();
+        let tokens = scanner.scan_tokens();
         assert_eq!(tokens.len(), 2);
         assert_eq!(
             tokens,
-            vec![
-                &Token {
+            &vec![
+                Token {
                     token_type: TokenTypes::String,
                     literal: Some(LiteralEnum::String("This is a string".to_string())),
                     lexeme: "\"This is a string\"".to_string(),
                     line: 1
                 },
-                &Token {
+                Token {
                     token_type: TokenTypes::Eof,
                     literal: None,
                     lexeme: "".to_string(),

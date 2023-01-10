@@ -3,10 +3,14 @@
 #[macro_use]
 
 mod ast;
+mod errors;
+mod parser;
 mod scanner;
 mod token;
 mod tool;
 
+use errors::JBreadErrors;
+use parser::{ParseTrait, Parser};
 pub use scanner::*;
 pub use token::*;
 pub use tool::*;
@@ -58,17 +62,26 @@ impl JuniorBread {
 
     pub fn run(&self, source: &str) {
         let mut scanner = Scanner::new(source);
-        for token in scanner.scan_tokens() {
-            println!("{:?}", token);
-        }
+        let mut parser = Parser::new(scanner.scan_tokens());
+        let ast = parser.parse();
+
+        if let Err(error) = &ast {
+            error.report();
+            Self::set_error();
+        };
+
+        let ast = ast.unwrap();
+        let mut ast_printer = AstPrinter::default();
+        dbg!(&ast);
+        dbg!(ast_printer.print(ast));
     }
 
-    pub fn error(line: u32, message: &str) {
-        Self::report(line, "", message);
+    pub fn error(err: JBreadErrors) {
+        Self::report(err);
     }
 
-    pub fn report(line: u32, where_: &str, message: &str) {
-        eprintln!("[line {}] Error {}: {}", line, where_, message);
+    pub fn report(error: JBreadErrors) {
+        eprintln!("{:?}\n{}", error, error.to_string());
         Self::set_error();
     }
 }
