@@ -38,6 +38,18 @@ lazy_static! {
     };
 }
 
+impl Default for Scanner {
+    fn default() -> Self {
+        Self {
+            tokens: Vec::new(),
+            source: String::new(),
+            start: 0,
+            current: 0,
+            line: 1,
+        }
+    }
+}
+
 impl Scanner {
     pub fn new(source: &str) -> Self {
         Self {
@@ -117,6 +129,7 @@ impl Scanner {
             '\r' => (),
             ' ' => (),
             '\n' => self.line += 1,
+            '"' => self.string(),
             ('0'..='9') => self.number(),
             ('a'..='z') | ('A'..='Z') | '_' => self.identifier(),
             _ => JuniorBread::error(self.line, "Unexpected character."),
@@ -210,5 +223,86 @@ impl Scanner {
         let text = self.source[self.start..self.current].to_string();
         self.tokens
             .push(Token::new(token_type, text, Some(literal), self.line));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_scanner_addition() {
+        let mut scanner = Scanner::new("1 + 2");
+        let tokens = scanner.scan_tokens().collect::<Vec<&Token>>();
+        assert_eq!(tokens.len(), 4);
+        assert_eq!(
+            tokens,
+            vec![
+                &Token {
+                    token_type: TokenTypes::Number,
+                    literal: Some(LiteralEnum::Number(1.0)),
+                    lexeme: "1".to_string(),
+                    line: 1
+                },
+                &Token {
+                    token_type: TokenTypes::Plus,
+                    literal: None,
+                    lexeme: "+".to_string(),
+                    line: 1
+                },
+                &Token {
+                    token_type: TokenTypes::Number,
+                    literal: Some(LiteralEnum::Number(2.0)),
+                    lexeme: "2".to_string(),
+                    line: 1
+                },
+                &Token {
+                    token_type: TokenTypes::Eof,
+                    literal: None,
+                    lexeme: "".to_string(),
+                    line: 1
+                }
+            ]
+        );
+    }
+
+    #[test]
+    fn test_scanner_comments() {
+        let mut scanner = Scanner::new("// This is a comment");
+        let tokens: Vec<&Token> = scanner.scan_tokens().collect();
+        assert_eq!(tokens.len(), 1);
+        assert_eq!(
+            tokens,
+            vec![&Token {
+                token_type: TokenTypes::Eof,
+                literal: None,
+                lexeme: "".to_string(),
+                line: 1
+            }]
+        );
+    }
+
+    #[test]
+    fn test_scanner_string() {
+        let mut scanner = Scanner::new("\"This is a string\"");
+        let tokens: Vec<&Token> = scanner.scan_tokens().collect();
+        assert_eq!(tokens.len(), 2);
+        assert_eq!(
+            tokens,
+            vec![
+                &Token {
+                    token_type: TokenTypes::String,
+                    literal: Some(LiteralEnum::String("This is a string".to_string())),
+                    lexeme: "\"This is a string\"".to_string(),
+                    line: 1
+                },
+                &Token {
+                    token_type: TokenTypes::Eof,
+                    literal: None,
+                    lexeme: "".to_string(),
+                    line: 1
+                }
+            ]
+        );
     }
 }
