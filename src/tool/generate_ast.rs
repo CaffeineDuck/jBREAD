@@ -8,7 +8,7 @@ macro_rules! define_ast {(
     => {
         // Generate the structs
         $(
-        #[derive(Debug, Clone)]
+        #[derive(Debug, Clone, PartialEq)]
         pub struct $name {
             $(pub $field: $type),*
         }
@@ -28,7 +28,7 @@ macro_rules! define_ast {(
         }
 
         // Create an Enum for the structs
-        #[derive(Debug, Clone)]
+        #[derive(Debug, Clone, PartialEq)]
         pub enum $enum_name {
             $($name($name),)*
         }

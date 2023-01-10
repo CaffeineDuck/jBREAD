@@ -144,7 +144,6 @@ impl<'a> ParseTrait for Parser<'a> {
         if self.match_token(&[TokenTypes::Bang, TokenTypes::Minus]) {
             let operator = self.previous().to_owned();
             let right = self.unary()?;
-            dbg!(&right, &operator);
             return Ok(Expr::Unary(Unary {
                 right: Box::new(right),
                 operator,
@@ -166,12 +165,11 @@ impl<'a> ParseTrait for Parser<'a> {
                 value: self.previous().literal.to_owned(),
             }))
         } else if self.match_token(&[TokenTypes::LeftParen]) {
-            let expr = match self.expression()? {
-                Expr::Grouping(grouping) => grouping,
-                _ => panic!("Expected grouping"),
-            };
+            let expr = self.expression()?;
             match self.consume(TokenTypes::RightParen, "Expect ')' after expression.") {
-                Ok(_) => Ok(Expr::Grouping(expr)),
+                Ok(_) => Ok(Expr::Grouping(crate::ast::Grouping {
+                    expression: Box::new(expr),
+                })),
                 Err(_) => panic!("Error"),
             }
         } else {
@@ -181,5 +179,109 @@ impl<'a> ParseTrait for Parser<'a> {
 
     fn parse(&mut self) -> JBreadResult<Expr> {
         self.expression()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{ParseTrait, Parser};
+    use crate::{Literal, Token, TokenTypes};
+
+    #[test]
+    fn test_term() {
+        let tokens = vec![
+            Token::new(
+                TokenTypes::Number,
+                "1".to_string(),
+                Some(Literal::Number(1.0)),
+                1,
+            ),
+            Token::new(TokenTypes::Plus, "+".to_string(), None, 1),
+            Token::new(
+                TokenTypes::Number,
+                "2".to_string(),
+                Some(Literal::Number(2.0)),
+                1,
+            ),
+            Token::new(TokenTypes::Eof, "".to_string(), None, 1),
+        ];
+        let mut parser = super::Parser::new(&tokens);
+
+        let ast = parser.parse();
+        assert!(ast.is_ok());
+
+        let ast = ast.unwrap();
+        assert_eq!(
+            ast,
+            super::Expr::Binary(super::Binary {
+                left: Box::new(super::Expr::Literal(super::Literal {
+                    value: Some(Literal::Number(1.0))
+                })),
+                right: Box::new(super::Expr::Literal(super::Literal {
+                    value: Some(Literal::Number(2.0))
+                })),
+                operator: Token::new(TokenTypes::Plus, "+".to_string(), None, 1)
+            })
+        )
+    }
+
+    #[test]
+    fn test_unary() {
+        let tokens = vec![
+            Token::new(TokenTypes::Minus, "-".to_string(), None, 1),
+            Token::new(
+                TokenTypes::Number,
+                "1".to_string(),
+                Some(Literal::Number(1.0)),
+                1,
+            ),
+            Token::new(TokenTypes::Eof, "".to_string(), None, 1),
+        ];
+        let mut parser = Parser::new(&tokens);
+
+        let ast = parser.parse();
+        assert!(ast.is_ok());
+
+        let ast = ast.unwrap();
+        assert_eq!(
+            ast,
+            super::Expr::Unary(super::Unary {
+                right: Box::new(super::Expr::Literal(super::Literal {
+                    value: Some(Literal::Number(1.0))
+                })),
+                operator: Token::new(TokenTypes::Minus, "-".to_string(), None, 1)
+            })
+        )
+    }
+
+    #[test]
+    fn test_grouping() {
+        let tokens = vec![
+            Token::new(TokenTypes::LeftParen, "(".to_string(), None, 1),
+            Token::new(
+                TokenTypes::Number,
+                "1".to_string(),
+                Some(Literal::Number(1.0)),
+                1,
+            ),
+            Token::new(TokenTypes::Minus, "-".to_string(), None, 1),
+            Token::new(TokenTypes::LeftParen, "(".to_string(), None, 1),
+            Token::new(
+                TokenTypes::Number,
+                "1".to_string(),
+                Some(Literal::Number(1.0)),
+                1,
+            ),
+            Token::new(TokenTypes::Plus, "+".to_string(), None, 1),
+            Token::new(
+                TokenTypes::Number,
+                "2".to_string(),
+                Some(Literal::Number(2.0)),
+                1,
+            ),
+            Token::new(TokenTypes::RightParen, ")".to_string(), None, 1),
+            Token::new(TokenTypes::RightParen, ")".to_string(), None, 1),
+            Token::new(TokenTypes::Eof, "".to_string(), None, 1),
+        ];
     }
 }
