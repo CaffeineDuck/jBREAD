@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use crate::errors::{Error, JBreadErrors};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenTypes {
@@ -56,6 +56,51 @@ pub enum Literal {
     String(String),
     Number(f64),
     Boolean(bool),
+}
+
+impl TryInto<f64> for Literal {
+    type Error = JBreadErrors;
+
+    fn try_into(self) -> Result<f64, Self::Error> {
+        match self {
+            Literal::Number(number) => Ok(number),
+            _ => Err(JBreadErrors::RunTimeException(Error::new(
+                0,
+                "Number".to_string(),
+                "Cannot convert non-number to number".to_string(),
+            ))),
+        }
+    }
+}
+
+impl TryInto<String> for Literal {
+    type Error = JBreadErrors;
+
+    fn try_into(self) -> Result<String, Self::Error> {
+        match self {
+            Literal::String(string) => Ok(string),
+            _ => Err(JBreadErrors::RunTimeException(Error::new(
+                0,
+                "String".to_string(),
+                "Cannot convert non-string to string".to_string(),
+            ))),
+        }
+    }
+}
+
+impl TryInto<bool> for Literal {
+    type Error = JBreadErrors;
+
+    fn try_into(self) -> Result<bool, Self::Error> {
+        match self {
+            Literal::Boolean(boolean) => Ok(boolean),
+            _ => Err(JBreadErrors::RunTimeException(Error::new(
+                0,
+                "Boolean".to_string(),
+                "Cannot convert non-boolean to boolean".to_string(),
+            ))),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]

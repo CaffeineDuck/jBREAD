@@ -4,6 +4,7 @@
 
 mod ast;
 mod errors;
+mod interpreter;
 mod parser;
 mod scanner;
 mod token;
@@ -21,6 +22,8 @@ use std::{
     io::{self, Read},
     sync::Mutex,
 };
+
+use crate::interpreter::Interpreter;
 
 pub struct JuniorBread {
     has_error: bool,
@@ -68,12 +71,22 @@ impl JuniorBread {
         if let Err(error) = &ast {
             error.report();
             Self::set_error();
+            return;
         };
 
         let ast = ast.unwrap();
         let mut ast_printer = AstPrinter::default();
-        dbg!(&ast);
-        dbg!(ast_printer.print(ast));
+        dbg!(ast_printer.print(ast.clone()));
+
+        let mut interpreter = Interpreter::new();
+        let result = interpreter.interpret(&ast);
+
+        if let Err(err) = &result {
+            err.report();
+            Self::set_error();
+            return;
+        }
+        dbg!(ast_printer.print(result.unwrap()));
     }
 
     pub fn error(err: JBreadErrors) {

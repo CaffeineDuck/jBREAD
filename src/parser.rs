@@ -9,6 +9,7 @@ pub trait ParseTrait {
     fn equality(&mut self) -> JBreadResult<Expr>;
     fn comparison(&mut self) -> JBreadResult<Expr>;
     fn term(&mut self) -> JBreadResult<Expr>;
+    fn factor(&mut self) -> JBreadResult<Expr>;
     fn unary(&mut self) -> JBreadResult<Expr>;
     fn primary(&mut self) -> JBreadResult<Expr>;
     fn parse(&mut self) -> JBreadResult<Expr>;
@@ -125,9 +126,25 @@ impl<'a> ParseTrait for Parser<'a> {
     }
 
     fn term(&mut self) -> JBreadResult<Expr> {
-        let mut expr = self.unary()?;
+        let mut expr = self.factor()?;
 
         while self.match_token(&[TokenTypes::Minus, TokenTypes::Plus]) {
+            let operator = self.previous().to_owned();
+            let right = self.factor()?;
+            expr = Expr::Binary(Binary {
+                left: Box::new(expr),
+                right: Box::new(right),
+                operator,
+            })
+        }
+
+        Ok(expr)
+    }
+
+    fn factor(&mut self) -> JBreadResult<Expr> {
+        let mut expr = self.unary()?;
+
+        while self.match_token(&[TokenTypes::Slash, TokenTypes::Star]) {
             let operator = self.previous().to_owned();
             let right = self.unary()?;
             expr = Expr::Binary(Binary {
