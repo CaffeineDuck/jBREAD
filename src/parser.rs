@@ -1,7 +1,7 @@
 use crate::{
     ast::{Binary, Expr, Literal, Unary},
     errors::{Error, JBreadErrors, JBreadResult},
-    Token, TokenTypes,
+    Literal as LiteralEnum, Token, TokenTypes,
 };
 
 pub trait ParseTrait {
@@ -154,13 +154,17 @@ impl<'a> ParseTrait for Parser<'a> {
     }
 
     fn primary(&mut self) -> JBreadResult<Expr> {
-        if self.match_token(&[
-            TokenTypes::False,
-            TokenTypes::True,
-            TokenTypes::Nil,
-            TokenTypes::String,
-            TokenTypes::Number,
-        ]) {
+        if self.match_token(&[TokenTypes::False]) {
+            Ok(Expr::Literal(Literal {
+                value: Some(LiteralEnum::Boolean(false)),
+            }))
+        } else if self.match_token(&[TokenTypes::True]) {
+            Ok(Expr::Literal(Literal {
+                value: Some(LiteralEnum::Boolean(true)),
+            }))
+        } else if self.match_token(&[TokenTypes::Nil]) {
+            Ok(Expr::Literal(Literal { value: None }))
+        } else if self.match_token(&[TokenTypes::String, TokenTypes::Number]) {
             Ok(Expr::Literal(Literal {
                 value: self.previous().literal.to_owned(),
             }))
@@ -185,7 +189,7 @@ impl<'a> ParseTrait for Parser<'a> {
 #[cfg(test)]
 mod tests {
     use super::{ParseTrait, Parser};
-    use crate::{Literal, Token, TokenTypes};
+    use crate::{ast::Grouping, Literal, Token, TokenTypes};
 
     #[test]
     fn test_term() {
@@ -283,5 +287,33 @@ mod tests {
             Token::new(TokenTypes::RightParen, ")".to_string(), None, 1),
             Token::new(TokenTypes::Eof, "".to_string(), None, 1),
         ];
+
+        let mut parser = Parser::new(&tokens);
+        let ast = parser.parse();
+        assert!(ast.is_ok());
+
+        let ast = ast.unwrap();
+        assert_eq!(
+            ast,
+            super::Expr::Grouping(Grouping {
+                expression: Box::new(super::Expr::Binary(super::Binary {
+                    left: Box::new(super::Expr::Literal(super::Literal {
+                        value: Some(Literal::Number(1.0))
+                    })),
+                    right: Box::new(super::Expr::Grouping(Grouping {
+                        expression: Box::new(super::Expr::Binary(super::Binary {
+                            left: Box::new(super::Expr::Literal(super::Literal {
+                                value: Some(Literal::Number(1.0))
+                            })),
+                            right: Box::new(super::Expr::Literal(super::Literal {
+                                value: Some(Literal::Number(2.0))
+                            })),
+                            operator: Token::new(TokenTypes::Plus, "+".to_string(), None, 1)
+                        }))
+                    })),
+                    operator: Token::new(TokenTypes::Minus, "-".to_string(), None, 1)
+                }))
+            })
+        )
     }
 }
