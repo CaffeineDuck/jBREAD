@@ -181,6 +181,10 @@ impl<'a> ParseTrait for Parser<'a> {
             }))
         } else if self.match_token(&[TokenTypes::Nil]) {
             Ok(Expr::Literal(Literal { value: None }))
+        } else if self.match_token(&[TokenTypes::NaN]) {
+            Ok(Expr::Literal(Literal {
+                value: Some(LiteralEnum::NaN),
+            }))
         } else if self.match_token(&[TokenTypes::String, TokenTypes::Number]) {
             Ok(Expr::Literal(Literal {
                 value: self.previous().literal.to_owned(),

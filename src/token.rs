@@ -29,6 +29,7 @@ pub enum TokenTypes {
     Identifier,
     String,
     Number,
+    NaN,
 
     // Keywords.
     And,
@@ -56,6 +57,7 @@ pub enum Literal {
     String(String),
     Number(f64),
     Boolean(bool),
+    NaN,
 }
 
 impl TryInto<f64> for Literal {

@@ -26,6 +26,7 @@ impl Visitor for AstPrinter {
                 LiteralEnum::String(s) => s.clone(),
                 LiteralEnum::Number(n) => n.to_string(),
                 LiteralEnum::Boolean(boolean) => boolean.to_string(),
+                LiteralEnum::NaN => "NaN".to_string(),
             }
         } else {
             "nil".to_string()

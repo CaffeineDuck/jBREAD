@@ -51,53 +51,43 @@ impl Visitor for Interpreter {
 
         let expr = match expr.operator.token_type {
             // For number
-            TokenTypes::Minus => Literal {
-                value: Some(LiteralEnum::Number(left_num? - right_num?)),
-            },
-            TokenTypes::Slash => Literal {
-                value: Some(LiteralEnum::Number(left_num? / right_num?)),
-            },
-            TokenTypes::Star => Literal {
-                value: Some(LiteralEnum::Number(left_num? * right_num?)),
-            },
-            TokenTypes::Greater => Literal {
-                value: Some(LiteralEnum::Boolean(left_num? > right_num?)),
-            },
-            TokenTypes::GreaterEqual => Literal {
-                value: Some(LiteralEnum::Boolean(left_num? >= right_num?)),
-            },
-            TokenTypes::Less => Literal {
-                value: Some(LiteralEnum::Boolean(left_num? < right_num?)),
-            },
-            TokenTypes::LessEqual => Literal {
-                value: Some(LiteralEnum::Boolean(left_num? <= right_num?)),
-            },
+            TokenTypes::Minus => LiteralEnum::Number(left_num? - right_num?),
+            TokenTypes::Star => LiteralEnum::Number(left_num? * right_num?),
+            TokenTypes::Greater => LiteralEnum::Boolean(left_num? > right_num?),
+            TokenTypes::GreaterEqual => LiteralEnum::Boolean(left_num? >= right_num?),
+            TokenTypes::Less => LiteralEnum::Boolean(left_num? < right_num?),
+            TokenTypes::LessEqual => LiteralEnum::Boolean(left_num? <= right_num?),
             // For all types
-            TokenTypes::BangEqual => Literal {
-                value: Some(LiteralEnum::Boolean(left != right)),
-            },
-            TokenTypes::EqualEqual => Literal {
-                value: Some(LiteralEnum::Boolean(left == right)),
+            TokenTypes::BangEqual => LiteralEnum::Boolean(left != right),
+            TokenTypes::EqualEqual => LiteralEnum::Boolean(left == right),
+            // For 0/0 division
+            TokenTypes::Slash => match (left_num, right_num) {
+                (Ok(left), Ok(right)) => {
+                    if right == 0.0 && left == 0.0 {
+                        LiteralEnum::NaN
+                    } else {
+                        LiteralEnum::Number(left / right)
+                    }
+                }
+                _ => return Err(self.error(&expr.operator, "Cannot divide non-number")),
             },
             // For addition and string concat
             TokenTypes::Plus => match (left.clone(), right.clone()) {
                 (LiteralEnum::String(_), LiteralEnum::String(_)) => {
                     let left_str: String = left.try_into()?;
                     let right_str: String = right.try_into()?;
-                    Literal {
-                        value: Some(LiteralEnum::String(left_str + &right_str)),
-                    }
+                    LiteralEnum::String(left_str + &right_str)
                 }
-                (LiteralEnum::Number(_), LiteralEnum::Number(_)) => Literal {
-                    value: Some(LiteralEnum::Number(left_num? + right_num?)),
-                },
+                (LiteralEnum::Number(_), LiteralEnum::Number(_)) => {
+                    LiteralEnum::Number(left_num? + right_num?)
+                }
                 _ => return Err(self.error(&expr.operator, "Invalid operands")),
             },
 
             _ => return Err(self.error(&expr.operator, "Invalid operator for binary expression")),
         };
 
-        Ok(expr)
+        Ok(Literal { value: Some(expr) })
     }
 
     fn visit_expr_grouping(&mut self, expr: &crate::ast::Grouping) -> Self::Result {
@@ -115,16 +105,379 @@ impl Visitor for Interpreter {
             .ok_or(self.error(&expr.operator, "Right value is not a literal"))?;
 
         let expr = match expr.operator.token_type {
-            TokenTypes::Minus => Literal {
-                value: Some(LiteralEnum::Number(-right_value.try_into()?)),
-            },
-            TokenTypes::Bang => Literal {
-                value: Some(LiteralEnum::Boolean(!right_value.try_into()?)),
-            },
-
+            TokenTypes::Minus => LiteralEnum::Number(-right_value.try_into()?),
+            TokenTypes::Bang => LiteralEnum::Boolean(!right_value.try_into()?),
             _ => return Err(self.error(&expr.operator, "Invalid operator for unary expression")),
         };
 
-        Ok(expr)
+        Ok(Literal { value: Some(expr) })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        ast::{Binary, Expr, Grouping, Literal, Unary},
+        errors::JBreadErrors,
+        Literal as LiteralEnum, Token, TokenTypes,
+    };
+
+    use super::Interpreter;
+
+    #[test]
+    fn test_binary_str_concat() {
+        let expr = Expr::Binary(Binary {
+            left: Box::new(Expr::Literal(Literal {
+                value: Some(LiteralEnum::String("Hello ".to_string())),
+            })),
+            operator: Token {
+                token_type: TokenTypes::Plus,
+                lexeme: "+".to_string(),
+                literal: None,
+                line: 1,
+            },
+            right: Box::new(Expr::Literal(Literal {
+                value: Some(LiteralEnum::String("World!".to_string())),
+            })),
+        });
+
+        let mut interpreter = Interpreter::new();
+        let result = interpreter.interpret(&expr);
+
+        assert!(result.is_ok());
+        assert_eq!(
+            result.unwrap(),
+            Expr::Literal(Literal {
+                value: Some(LiteralEnum::String("Hello World!".to_string())),
+            })
+        );
+    }
+
+    #[test]
+    fn test_binary_num_add() {
+        let expr = Expr::Binary(Binary {
+            left: Box::new(Expr::Literal(Literal {
+                value: Some(LiteralEnum::Number(1.0)),
+            })),
+            operator: Token {
+                token_type: TokenTypes::Plus,
+                lexeme: "+".to_string(),
+                literal: None,
+                line: 1,
+            },
+            right: Box::new(Expr::Literal(Literal {
+                value: Some(LiteralEnum::Number(2.0)),
+            })),
+        });
+
+        let mut interpreter = Interpreter::new();
+        let result = interpreter.interpret(&expr);
+
+        assert!(result.is_ok());
+        assert_eq!(
+            result.unwrap(),
+            Expr::Literal(Literal {
+                value: Some(LiteralEnum::Number(3.0)),
+            })
+        );
+    }
+
+    #[test]
+    fn test_0_0_division() {
+        let expr = Expr::Binary(Binary {
+            left: Box::new(Expr::Literal(Literal {
+                value: Some(LiteralEnum::Number(0.0)),
+            })),
+            operator: Token {
+                token_type: TokenTypes::Slash,
+                lexeme: "/".to_string(),
+                literal: None,
+                line: 1,
+            },
+            right: Box::new(Expr::Literal(Literal {
+                value: Some(LiteralEnum::Number(0.0)),
+            })),
+        });
+
+        let mut interpreter = Interpreter::new();
+        let result = interpreter.interpret(&expr);
+
+        assert!(result.is_ok());
+        assert_eq!(
+            result.unwrap(),
+            Expr::Literal(Literal {
+                value: Some(LiteralEnum::NaN),
+            })
+        );
+    }
+
+    #[test]
+    fn test_binary_multipication() {
+        let expr = Expr::Binary(Binary {
+            left: Box::new(Expr::Literal(Literal {
+                value: Some(LiteralEnum::Number(2.0)),
+            })),
+            operator: Token {
+                token_type: TokenTypes::Star,
+                lexeme: "*".to_string(),
+                literal: None,
+                line: 1,
+            },
+            right: Box::new(Expr::Literal(Literal {
+                value: Some(LiteralEnum::Number(3.0)),
+            })),
+        });
+
+        let mut interpreter = Interpreter::new();
+        let result = interpreter.interpret(&expr);
+
+        assert!(result.is_ok());
+        assert_eq!(
+            result.unwrap(),
+            Expr::Literal(Literal {
+                value: Some(LiteralEnum::Number(6.0)),
+            })
+        );
+    }
+
+    #[test]
+    fn test_binary_division() {
+        let expr = Expr::Binary(Binary {
+            left: Box::new(Expr::Literal(Literal {
+                value: Some(LiteralEnum::Number(6.0)),
+            })),
+            operator: Token {
+                token_type: TokenTypes::Slash,
+                lexeme: "/".to_string(),
+                literal: None,
+                line: 1,
+            },
+            right: Box::new(Expr::Literal(Literal {
+                value: Some(LiteralEnum::Number(2.0)),
+            })),
+        });
+
+        let mut interpreter = Interpreter::new();
+        let result = interpreter.interpret(&expr);
+
+        assert!(result.is_ok());
+        assert_eq!(
+            result.unwrap(),
+            Expr::Literal(Literal {
+                value: Some(LiteralEnum::Number(3.0)),
+            })
+        );
+    }
+
+    #[test]
+    fn test_binary_subtraction() {
+        let expr = Expr::Binary(Binary {
+            left: Box::new(Expr::Literal(Literal {
+                value: Some(LiteralEnum::Number(6.0)),
+            })),
+            operator: Token {
+                token_type: TokenTypes::Minus,
+                lexeme: "-".to_string(),
+                literal: None,
+                line: 1,
+            },
+            right: Box::new(Expr::Literal(Literal {
+                value: Some(LiteralEnum::Number(2.0)),
+            })),
+        });
+
+        let mut interpreter = Interpreter::new();
+        let result = interpreter.interpret(&expr);
+
+        assert!(result.is_ok());
+        assert_eq!(
+            result.unwrap(),
+            Expr::Literal(Literal {
+                value: Some(LiteralEnum::Number(4.0)),
+            })
+        );
+    }
+
+    #[test]
+    fn test_binary_greater() {
+        let expr = Expr::Binary(Binary {
+            left: Box::new(Expr::Literal(Literal {
+                value: Some(LiteralEnum::Number(6.0)),
+            })),
+            operator: Token {
+                token_type: TokenTypes::Greater,
+                lexeme: ">".to_string(),
+                literal: None,
+                line: 1,
+            },
+            right: Box::new(Expr::Literal(Literal {
+                value: Some(LiteralEnum::Number(2.0)),
+            })),
+        });
+
+        let mut interpreter = Interpreter::new();
+        let result = interpreter.interpret(&expr);
+
+        assert!(result.is_ok());
+        assert_eq!(
+            result.unwrap(),
+            Expr::Literal(Literal {
+                value: Some(LiteralEnum::Boolean(true)),
+            })
+        );
+    }
+
+    #[test]
+    fn test_binary_greater_equal() {
+        let expr = Expr::Binary(Binary {
+            left: Box::new(Expr::Literal(Literal {
+                value: Some(LiteralEnum::Number(6.0)),
+            })),
+            operator: Token {
+                token_type: TokenTypes::GreaterEqual,
+                lexeme: ">=".to_string(),
+                literal: None,
+                line: 1,
+            },
+            right: Box::new(Expr::Literal(Literal {
+                value: Some(LiteralEnum::Number(2.0)),
+            })),
+        });
+
+        let mut interpreter = Interpreter::new();
+        let result = interpreter.interpret(&expr);
+
+        assert!(result.is_ok());
+        assert_eq!(
+            result.unwrap(),
+            Expr::Literal(Literal {
+                value: Some(LiteralEnum::Boolean(true)),
+            })
+        );
+    }
+
+    #[test]
+    fn test_binary_less() {
+        let expr = Expr::Binary(Binary {
+            left: Box::new(Expr::Literal(Literal {
+                value: Some(LiteralEnum::Number(6.0)),
+            })),
+            operator: Token {
+                token_type: TokenTypes::Less,
+                lexeme: "<".to_string(),
+                literal: None,
+                line: 1,
+            },
+            right: Box::new(Expr::Literal(Literal {
+                value: Some(LiteralEnum::Number(2.0)),
+            })),
+        });
+
+        let mut interpreter = Interpreter::new();
+        let result = interpreter.interpret(&expr);
+
+        assert!(result.is_ok());
+        assert_eq!(
+            result.unwrap(),
+            Expr::Literal(Literal {
+                value: Some(LiteralEnum::Boolean(false)),
+            })
+        );
+    }
+
+    #[test]
+    fn test_unary_negation() {
+        let expr = Expr::Unary(Unary {
+            operator: Token::new(TokenTypes::Bang, "!".to_string(), None, 1),
+            right: Box::new(Expr::Literal(Literal {
+                value: Some(LiteralEnum::Boolean(true)),
+            })),
+        });
+
+        let mut interpreter = Interpreter::new();
+        let result = interpreter.interpret(&expr);
+
+        assert!(result.is_ok());
+        assert_eq!(
+            result.unwrap(),
+            Expr::Literal(Literal {
+                value: Some(LiteralEnum::Boolean(false)),
+            })
+        );
+    }
+
+    #[test]
+    fn test_unary_subtraction() {
+        let expr = Expr::Unary(Unary {
+            operator: Token::new(TokenTypes::Minus, "-".to_string(), None, 1),
+            right: Box::new(Expr::Literal(Literal {
+                value: Some(LiteralEnum::Number(2.0)),
+            })),
+        });
+
+        let mut interpreter = Interpreter::new();
+        let result = interpreter.interpret(&expr);
+
+        assert!(result.is_ok());
+        assert_eq!(
+            result.unwrap(),
+            Expr::Literal(Literal {
+                value: Some(LiteralEnum::Number(-2.0)),
+            })
+        );
+    }
+
+    #[test]
+    fn test_grouping() {
+        let expr = Expr::Grouping(Grouping {
+            expression: Box::new(Expr::Binary(Binary {
+                left: Box::new(Expr::Literal(Literal {
+                    value: Some(LiteralEnum::Number(6.0)),
+                })),
+                operator: Token {
+                    token_type: TokenTypes::Minus,
+                    lexeme: "-".to_string(),
+                    literal: None,
+                    line: 1,
+                },
+                right: Box::new(Expr::Literal(Literal {
+                    value: Some(LiteralEnum::Number(2.0)),
+                })),
+            })),
+        });
+
+        let mut interpreter = Interpreter::new();
+        let result = interpreter.interpret(&expr);
+
+        assert!(result.is_ok());
+        assert_eq!(
+            result.unwrap(),
+            Expr::Literal(Literal {
+                value: Some(LiteralEnum::Number(4.0)),
+            })
+        );
+    }
+
+    #[test]
+    fn test_string_and_int_addition() {
+        let expr = Expr::Binary(Binary {
+            left: Box::new(Expr::Literal(Literal {
+                value: Some(LiteralEnum::String("Hello, ".to_string())),
+            })),
+            operator: Token {
+                token_type: TokenTypes::Plus,
+                lexeme: "+".to_string(),
+                literal: None,
+                line: 1,
+            },
+            right: Box::new(Expr::Literal(Literal {
+                value: Some(LiteralEnum::Number(2.0)),
+            })),
+        });
+
+        let mut interpreter = Interpreter::new();
+        let result = interpreter.interpret(&expr);
+
+        assert!(result.is_err());
     }
 }

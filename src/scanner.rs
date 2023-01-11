@@ -132,6 +132,18 @@ impl Scanner {
             '\n' => self.line += 1,
             '"' => self.string(),
             ('0'..='9') => self.number(),
+            'N' => {
+                // Implement for NaN
+                if self.match_next('a') && self.match_next('N') {
+                    self.add_token(TokenTypes::NaN);
+                } else {
+                    JuniorBread::error(JBreadErrors::ParseError(Error::new(
+                        self.line,
+                        "".to_string(),
+                        "Unexpected character.".to_string(),
+                    )))
+                }
+            }
             ('a'..='z') | ('A'..='Z') | '_' => self.identifier(),
             _ => JuniorBread::error(JBreadErrors::ParseError(Error::new(
                 self.line,
