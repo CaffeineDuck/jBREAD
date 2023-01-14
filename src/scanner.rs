@@ -17,26 +17,27 @@ pub struct Scanner {
 }
 
 lazy_static! {
-    static ref KEYWORDS_MAP: HashMap<&'static str, TokenTypes> = {
-        let mut map = HashMap::new();
-        map.insert("and", TokenTypes::And);
-        map.insert("class", TokenTypes::Class);
-        map.insert("else", TokenTypes::Else);
-        map.insert("false", TokenTypes::False);
-        map.insert("for", TokenTypes::For);
-        map.insert("fun", TokenTypes::Fun);
-        map.insert("if", TokenTypes::If);
-        map.insert("nil", TokenTypes::Nil);
-        map.insert("or", TokenTypes::Or);
-        map.insert("print", TokenTypes::Print);
-        map.insert("return", TokenTypes::Return);
-        map.insert("super", TokenTypes::Super);
-        map.insert("this", TokenTypes::This);
-        map.insert("true", TokenTypes::True);
-        map.insert("var", TokenTypes::Var);
-        map.insert("while", TokenTypes::While);
-        map
-    };
+    static ref KEYWORDS_MAP: HashMap<&'static str, TokenTypes> = HashMap::from_iter(
+        vec![
+            ("and", TokenTypes::And),
+            ("class", TokenTypes::Class),
+            ("else", TokenTypes::Else),
+            ("false", TokenTypes::False),
+            ("for", TokenTypes::For),
+            ("fun", TokenTypes::Fun),
+            ("if", TokenTypes::If),
+            ("nil", TokenTypes::Nil),
+            ("or", TokenTypes::Or),
+            ("print", TokenTypes::Print),
+            ("return", TokenTypes::Return),
+            ("super", TokenTypes::Super),
+            ("this", TokenTypes::This),
+            ("true", TokenTypes::True),
+            ("var", TokenTypes::Var),
+            ("while", TokenTypes::While),
+        ]
+        .into_iter()
+    );
 }
 
 impl Default for Scanner {
