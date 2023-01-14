@@ -1,10 +1,11 @@
 use crate::{
-    ast::{Binary, Expr, Literal, Unary},
+    ast::{Binary, Expr, Expression, Literal, Print, Stmt, Unary},
     errors::{Error, JBreadErrors, JBreadResult},
     Literal as LiteralEnum, Token, TokenTypes,
 };
 
 pub trait ParseTrait {
+    // Expressions parsing
     fn expression(&mut self) -> JBreadResult<Expr>;
     fn equality(&mut self) -> JBreadResult<Expr>;
     fn comparison(&mut self) -> JBreadResult<Expr>;
@@ -12,7 +13,13 @@ pub trait ParseTrait {
     fn factor(&mut self) -> JBreadResult<Expr>;
     fn unary(&mut self) -> JBreadResult<Expr>;
     fn primary(&mut self) -> JBreadResult<Expr>;
-    fn parse(&mut self) -> JBreadResult<Expr>;
+    // Statement parsing
+    fn expression_statement(&mut self) -> JBreadResult<Stmt>;
+    fn print_statement(&mut self) -> JBreadResult<Stmt>;
+    fn statement(&mut self) -> JBreadResult<Stmt>;
+
+    // Actual parsing
+    fn parse(&mut self) -> JBreadResult<Vec<Stmt>>;
 }
 
 /// This parser implements the following CFG:
@@ -69,11 +76,12 @@ impl<'a> Parser<'a> {
         self.tokens.get(self.current).unwrap()
     }
 
-    fn consume(&self, right_paren: TokenTypes, arg: &str) -> JBreadResult<()> {
-        if self.check(&right_paren) {
-            return Ok(());
+    fn consume(&mut self, token_type: TokenTypes, arg: &str) -> JBreadResult<&Token> {
+        if self.check(&token_type) {
+            Ok(self.advance())
+        } else {
+            Err(self.error(self.peek(), arg))
         }
-        Err(self.error(self.peek(), arg))
     }
 
     fn error(&self, peek: &Token, arg: &str) -> JBreadErrors {
@@ -201,9 +209,35 @@ impl<'a> ParseTrait for Parser<'a> {
             Err(self.error(self.peek(), "Expected Expression"))
         }
     }
+    fn expression_statement(&mut self) -> JBreadResult<Stmt> {
+        let expr = self.expression()?;
+        self.consume(TokenTypes::Semicolon, "Expect ';' after expression.")?;
+        Ok(Stmt::Expression(Expression {
+            expression: Box::new(expr),
+        }))
+    }
 
-    fn parse(&mut self) -> JBreadResult<Expr> {
-        self.expression()
+    fn print_statement(&mut self) -> JBreadResult<Stmt> {
+        let expr = self.expression()?;
+        self.consume(TokenTypes::Semicolon, "Expect ';' after value.")?;
+        Ok(Stmt::Print(Print {
+            expression: Box::new(expr),
+        }))
+    }
+
+    fn statement(&mut self) -> JBreadResult<Stmt> {
+        match self.match_token(&[TokenTypes::Print]) {
+            true => self.print_statement(),
+            false => self.expression_statement(),
+        }
+    }
+
+    fn parse(&mut self) -> JBreadResult<Vec<Stmt>> {
+        let mut statements = Vec::new();
+        while !self.is_at_end() {
+            statements.push(self.statement()?);
+        }
+        Ok(statements)
     }
 }
 

@@ -1,12 +1,12 @@
 use crate::{
-    ast::{Binary, Grouping, Literal, Unary, Visitor},
+    ast::{Binary, Grouping, Literal, Stmt, Unary, VisitorExpr, VisitorStmt},
     token::Literal as LiteralEnum,
     AstNode,
 };
 
 pub struct AstPrinter {}
 
-impl Visitor for AstPrinter {
+impl VisitorExpr for AstPrinter {
     type Result = String;
 
     fn visit_expr_binary(&mut self, expr: &Binary) -> String {
@@ -35,6 +35,18 @@ impl Visitor for AstPrinter {
 
     fn visit_expr_unary(&mut self, expr: &Unary) -> String {
         self.parenthesize(expr.operator.lexeme.as_str(), vec![expr.right.clone()])
+    }
+}
+
+impl VisitorStmt for AstPrinter {
+    type Result = Stmt;
+
+    fn visit_stmt_expression(&mut self, expr: &crate::ast::Expression) -> Self::Result {
+        todo!()
+    }
+
+    fn visit_stmt_print(&mut self, expr: &crate::ast::Print) -> Self::Result {
+        todo!()
     }
 }
 

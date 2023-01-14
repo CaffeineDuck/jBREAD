@@ -1,8 +1,8 @@
-use crate::{define_ast, AstNode, Literal as LiteralEnum, Token};
+use crate::{define_ast, AstNode, AstStmt, Literal as LiteralEnum, Token};
 
 define_ast!(
     AstNode,
-    Visitor,
+    VisitorExpr,
     Expr,
     [
         Binary {
@@ -30,5 +30,23 @@ define_ast!(
             right: Box<Expr>
         },
         visit_expr_unary
+    ],
+);
+
+define_ast!(
+    AstStmt,
+    VisitorStmt,
+    Stmt,
+    [
+        Expression {
+            expression: Box<Expr>
+        },
+        visit_stmt_expression
+    ],
+    [
+        Print {
+            expression: Box<Expr>
+        },
+        visit_stmt_print
     ],
 );

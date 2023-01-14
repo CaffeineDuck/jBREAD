@@ -1,7 +1,7 @@
 use crate::{
-    ast::{Expr, Literal, Visitor},
+    ast::{Expr, Literal, Stmt, VisitorExpr, VisitorStmt},
     errors::{self, JBreadErrors, JBreadResult},
-    AstNode, Literal as LiteralEnum, Token, TokenTypes,
+    AstNode, AstStmt, Literal as LiteralEnum, Token, TokenTypes,
 };
 
 pub struct Interpreter {
@@ -19,6 +19,10 @@ impl Interpreter {
         expr.accept(self)
     }
 
+    fn execute(&mut self, stmt: &Stmt) -> JBreadResult<()> {
+        stmt.accept(self)
+    }
+
     fn error(&self, token: &Token, message: &str) -> JBreadErrors {
         JBreadErrors::RunTimeException(errors::Error::new(
             token.line,
@@ -27,13 +31,15 @@ impl Interpreter {
         ))
     }
 
-    pub fn interpret(&mut self, expr: &Expr) -> JBreadResult<Expr> {
-        let result = self.evalute(expr)?;
-        Ok(Expr::Literal(result))
+    pub fn interpret(&mut self, stmts: &[Stmt]) -> JBreadResult<()> {
+        for stmt in stmts.iter() {
+            self.execute(stmt)?;
+        }
+        Ok(())
     }
 }
 
-impl Visitor for Interpreter {
+impl VisitorExpr for Interpreter {
     type Result = JBreadResult<Literal>;
 
     fn visit_expr_binary(&mut self, expr: &crate::ast::Binary) -> Self::Result {
@@ -114,11 +120,25 @@ impl Visitor for Interpreter {
     }
 }
 
+impl VisitorStmt for Interpreter {
+    type Result = JBreadResult<()>;
+
+    fn visit_stmt_expression(&mut self, expr: &crate::ast::Expression) -> Self::Result {
+        self.evalute(&expr.expression)?;
+        Ok(())
+    }
+
+    fn visit_stmt_print(&mut self, expr: &crate::ast::Print) -> Self::Result {
+        let value = self.evalute(&expr.expression)?;
+        println!("{:?}", value);
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::{
-        ast::{Binary, Expr, Grouping, Literal, Unary},
-        errors::JBreadErrors,
+        ast::{Binary, Expr, Expression, Grouping, Literal, Print, Stmt, Unary},
         Literal as LiteralEnum, Token, TokenTypes,
     };
 
@@ -126,23 +146,39 @@ mod tests {
 
     #[test]
     fn test_binary_str_concat() {
-        let expr = Expr::Binary(Binary {
-            left: Box::new(Expr::Literal(Literal {
-                value: Some(LiteralEnum::String("Hello ".to_string())),
-            })),
-            operator: Token {
-                token_type: TokenTypes::Plus,
-                lexeme: "+".to_string(),
-                literal: None,
-                line: 1,
-            },
-            right: Box::new(Expr::Literal(Literal {
-                value: Some(LiteralEnum::String("World!".to_string())),
+        // let stmt = Expr::Binary(Binary {
+        //     left: Box::new(Expr::Literal(Literal {
+        //         value: Some(LiteralEnum::String("Hello ".to_string())),
+        //     })),
+        //     operator: Token {
+        //         token_type: TokenTypes::Plus,
+        //         lexeme: "+".to_string(),
+        //         literal: None,
+        //         line: 1,
+        //     },
+        //     right: Box::new(Expr::Literal(Literal {
+        //         value: Some(LiteralEnum::String("World!".to_string())),
+        //     })),
+        // });
+        let stmt = Stmt::Print(Print {
+            expression: Box::new(Expr::Binary(Binary {
+                left: Box::new(Expr::Literal(Literal {
+                    value: Some(LiteralEnum::String("Hello ".to_string())),
+                })),
+                operator: Token {
+                    token_type: TokenTypes::Plus,
+                    lexeme: "+".to_string(),
+                    literal: None,
+                    line: 1,
+                },
+                right: Box::new(Expr::Literal(Literal {
+                    value: Some(LiteralEnum::String("World!".to_string())),
+                })),
             })),
         });
 
         let mut interpreter = Interpreter::new();
-        let result = interpreter.interpret(&expr);
+        let result = interpreter.interpret(&vec![stmt]);
 
         assert!(result.is_ok());
         assert_eq!(

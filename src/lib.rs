@@ -75,8 +75,8 @@ impl JuniorBread {
         };
 
         let ast = ast.unwrap();
-        let mut ast_printer = AstPrinter::default();
-        dbg!(ast_printer.print(ast.clone()));
+        // let mut ast_printer = AstPrinter::default();
+        // dbg!(ast_printer.print(ast.clone()));
 
         let mut interpreter = Interpreter::new();
         let result = interpreter.interpret(&ast);
@@ -86,7 +86,7 @@ impl JuniorBread {
             Self::set_error();
             return;
         }
-        dbg!(ast_printer.print(result.unwrap()));
+        // dbg!(ast_printer.print(result.unwrap()));
     }
 
     pub fn error(err: JBreadErrors) {
