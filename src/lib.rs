@@ -78,7 +78,7 @@ impl JuniorBread {
         // let mut ast_printer = AstPrinter::default();
         // dbg!(ast_printer.print(ast.clone()));
 
-        let mut interpreter = Interpreter::new();
+        let mut interpreter = Interpreter::default();
         let result = interpreter.interpret(&ast);
 
         if let Err(err) = &result {

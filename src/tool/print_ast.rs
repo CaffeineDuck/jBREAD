@@ -36,6 +36,10 @@ impl VisitorExpr for AstPrinter {
     fn visit_expr_unary(&mut self, expr: &Unary) -> String {
         self.parenthesize(expr.operator.lexeme.as_str(), vec![expr.right.clone()])
     }
+
+    fn visit_expr_variable(&mut self, expr: &crate::ast::Variable) -> Self::Result {
+        todo!()
+    }
 }
 
 impl VisitorStmt for AstPrinter {
@@ -46,6 +50,10 @@ impl VisitorStmt for AstPrinter {
     }
 
     fn visit_stmt_print(&mut self, expr: &crate::ast::Print) -> Self::Result {
+        todo!()
+    }
+
+    fn visit_stmt_var(&mut self, expr: &crate::ast::Var) -> Self::Result {
         todo!()
     }
 }

@@ -1,20 +1,25 @@
 use crate::{
     ast::{Expr, Literal, Stmt, VisitorExpr, VisitorStmt},
     errors::{self, JBreadErrors, JBreadResult},
+    interpreter::environment::Environment,
     AstNode, AstStmt, Literal as LiteralEnum, Token, TokenTypes,
 };
 
 pub struct Interpreter {
     // pub globals: HashMap<String, Value>,
     // pub locals: HashMap<String, Value>,
-    // pub environment: Environment,
+    pub environment: Environment,
+}
+
+impl Default for Interpreter {
+    fn default() -> Self {
+        Self {
+            environment: Environment::default(),
+        }
+    }
 }
 
 impl Interpreter {
-    pub fn new() -> Self {
-        Self {}
-    }
-
     fn evalute(&mut self, expr: &Expr) -> JBreadResult<Literal> {
         expr.accept(self)
     }
@@ -26,8 +31,8 @@ impl Interpreter {
     fn error(&self, token: &Token, message: &str) -> JBreadErrors {
         JBreadErrors::RunTimeException(errors::Error::new(
             token.line,
-            message.to_string(),
             token.lexeme.clone(),
+            message.to_string(),
         ))
     }
 
@@ -118,6 +123,16 @@ impl VisitorExpr for Interpreter {
 
         Ok(Literal { value: Some(expr) })
     }
+
+    fn visit_expr_variable(&mut self, expr: &crate::ast::Variable) -> Self::Result {
+        let value = self
+            .environment
+            .get(&expr.name)
+            .ok_or(self.error(&expr.name, "Variable not found"))?;
+        Ok(Literal {
+            value: value.to_owned(),
+        })
+    }
 }
 
 impl VisitorStmt for Interpreter {
@@ -131,6 +146,16 @@ impl VisitorStmt for Interpreter {
     fn visit_stmt_print(&mut self, expr: &crate::ast::Print) -> Self::Result {
         let value = self.evalute(&expr.expression)?;
         println!("{:?}", value);
+        Ok(())
+    }
+
+    fn visit_stmt_var(&mut self, stmt: &crate::ast::Var) -> Self::Result {
+        let expr = match &stmt.initializer {
+            Some(expr) => self.evalute(expr)?,
+            None => Literal { value: None },
+        };
+
+        self.environment.define(&stmt.name.lexeme, expr.value);
         Ok(())
     }
 }

@@ -1,5 +1,5 @@
 use crate::{
-    ast::{Binary, Expr, Expression, Literal, Print, Stmt, Unary},
+    ast::{Binary, Expr, Expression, Literal, Print, Stmt, Unary, Var, Variable},
     errors::{Error, JBreadErrors, JBreadResult},
     Literal as LiteralEnum, Token, TokenTypes,
 };
@@ -16,6 +16,7 @@ pub trait ParseTrait {
     // Statement parsing
     fn expression_statement(&mut self) -> JBreadResult<Stmt>;
     fn print_statement(&mut self) -> JBreadResult<Stmt>;
+    fn decleration(&mut self) -> JBreadResult<Stmt>;
     fn statement(&mut self) -> JBreadResult<Stmt>;
 
     // Actual parsing
@@ -23,13 +24,20 @@ pub trait ParseTrait {
 }
 
 /// This parser implements the following CFG:
-/// expression     → equality ;
-/// equality       → comparison ( ( "!=" | "==" ) comparison )\* ;
-/// comparison     → term ( ( ">" | ">=" | "<" | "<=" ) term )\* ;
-/// term           → factor ( ( "-" | "+" ) factor )\* ;
-/// factor         → unary ( ( "/" | "*" ) unary )\* ;
-/// unary          → ( "!" | "-" ) unary | primary ;
-/// primary        → NUMBER | STRING | "true" | "false" | "nil" | "(" expression ")" ;
+/// program     → declaration* EOF ;
+/// declaration → varDecl | statement ;
+/// varDecl     → "var" IDENTIFIER ( "=" expression )? ";" ;
+/// statement   → exprStmt | printStmt ;
+/// exprStmt    → expression ";" ;
+/// printStmt   → "print" expression ";" ;
+/// expression  → equality ;
+/// expression  → equality ;
+/// equality    → comparison ( ( "!=" | "==" ) comparison )\* ;
+/// comparison  → term ( ( ">" | ">=" | "<" | "<=" ) term )\* ;
+/// term        → factor ( ( "-" | "+" ) factor )\* ;
+/// factor      → unary ( ( "/" | "*" ) unary )\* ;
+/// unary       → ( "!" | "-" ) unary | primary ;
+/// primary     → NUMBER | STRING | IDENTIFIER | "true" | "false" | "nil" | "(" expression ")" ;
 pub struct Parser<'a> {
     tokens: &'a Vec<Token>,
     current: usize,
@@ -86,6 +94,22 @@ impl<'a> Parser<'a> {
 
     fn error(&self, peek: &Token, arg: &str) -> JBreadErrors {
         JBreadErrors::ParseError(Error::new(peek.line, peek.lexeme.clone(), arg.to_string()))
+    }
+
+    fn var_decleration(&mut self) -> JBreadResult<Stmt> {
+        let name = self
+            .consume(TokenTypes::Identifier, "Expected a variable name")?
+            .to_owned();
+
+        let mut initializer = None;
+        if self.match_token(&[TokenTypes::Equal]) {
+            initializer = Some(Box::new(self.expression()?));
+        }
+        self.consume(
+            TokenTypes::Semicolon,
+            "Expected ';' after variable declaration",
+        )?;
+        Ok(Stmt::Var(Var { name, initializer }))
     }
 
     // TODO: Implement error handling while parsing
@@ -197,6 +221,14 @@ impl<'a> ParseTrait for Parser<'a> {
             Ok(Expr::Literal(Literal {
                 value: self.previous().literal.to_owned(),
             }))
+        } else if self.match_token(&[TokenTypes::Identifier]) {
+            Ok(Expr::Variable(Variable {
+                name: self.previous().to_owned(),
+            }))
+        } else if self.match_token(&[TokenTypes::Var]) {
+            Ok(Expr::Variable(Variable {
+                name: self.previous().to_owned(),
+            }))
         } else if self.match_token(&[TokenTypes::LeftParen]) {
             let expr = self.expression()?;
             match self.consume(TokenTypes::RightParen, "Expect ')' after expression.") {
@@ -206,7 +238,7 @@ impl<'a> ParseTrait for Parser<'a> {
                 Err(_) => panic!("Error"),
             }
         } else {
-            Err(self.error(self.peek(), "Expected Expression"))
+            Err(self.error(self.previous(), "Expected Expression"))
         }
     }
     fn expression_statement(&mut self) -> JBreadResult<Stmt> {
@@ -235,9 +267,17 @@ impl<'a> ParseTrait for Parser<'a> {
     fn parse(&mut self) -> JBreadResult<Vec<Stmt>> {
         let mut statements = Vec::new();
         while !self.is_at_end() {
-            statements.push(self.statement()?);
+            statements.push(self.decleration()?);
         }
         Ok(statements)
+    }
+
+    fn decleration(&mut self) -> JBreadResult<Stmt> {
+        if self.match_token(&[TokenTypes::Var]) {
+            self.var_decleration()
+        } else {
+            self.statement()
+        }
     }
 }
 

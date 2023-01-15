@@ -31,6 +31,12 @@ define_ast!(
         },
         visit_expr_unary
     ],
+    [
+        Variable {
+            name: Token
+        },
+        visit_expr_variable
+    ],
 );
 
 define_ast!(
@@ -48,5 +54,12 @@ define_ast!(
             expression: Box<Expr>
         },
         visit_stmt_print
+    ],
+    [
+        Var {
+            name: Token,
+            initializer: Option<Box<Expr>>
+        },
+        visit_stmt_var
     ],
 );
