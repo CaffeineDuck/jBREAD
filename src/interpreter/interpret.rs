@@ -125,13 +125,17 @@ impl VisitorExpr for Interpreter {
     }
 
     fn visit_expr_variable(&mut self, expr: &crate::ast::Variable) -> Self::Result {
-        let value = self
-            .environment
-            .get(&expr.name)
-            .ok_or(self.error(&expr.name, "Variable not found"))?;
+        let value = self.environment.get(&expr.name)?;
         Ok(Literal {
             value: value.to_owned(),
         })
+    }
+
+    fn visit_expr_assign(&mut self, expr: &crate::ast::Assign) -> Self::Result {
+        let evaluated = self.evalute(&expr.value)?;
+        self.environment
+            .assign(&expr.name, evaluated.value.clone())?;
+        Ok(evaluated)
     }
 }
 

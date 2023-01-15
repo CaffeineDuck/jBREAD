@@ -1,5 +1,5 @@
 use crate::{
-    ast::{Binary, Expr, Expression, Literal, Print, Stmt, Unary, Var, Variable},
+    ast::{Assign, Binary, Expr, Expression, Literal, Print, Stmt, Unary, Var, Variable},
     errors::{Error, JBreadErrors, JBreadResult},
     Literal as LiteralEnum, Token, TokenTypes,
 };
@@ -7,6 +7,7 @@ use crate::{
 pub trait ParseTrait {
     // Expressions parsing
     fn expression(&mut self) -> JBreadResult<Expr>;
+    fn assignment(&mut self) -> JBreadResult<Expr>;
     fn equality(&mut self) -> JBreadResult<Expr>;
     fn comparison(&mut self) -> JBreadResult<Expr>;
     fn term(&mut self) -> JBreadResult<Expr>;
@@ -117,7 +118,30 @@ impl<'a> Parser<'a> {
 
 impl<'a> ParseTrait for Parser<'a> {
     fn expression(&mut self) -> JBreadResult<Expr> {
-        self.equality()
+        self.assignment()
+    }
+
+    fn assignment(&mut self) -> Result<Expr, JBreadErrors> {
+        let expr = self.equality()?;
+
+        if self.match_token(&[TokenTypes::Equal]) {
+            let equals = self.previous().to_owned();
+            let value = self.assignment()?;
+
+            match expr {
+                Expr::Variable(Variable { name }) => {
+                    return Ok(Expr::Assign(Assign {
+                        name,
+                        value: Box::new(value),
+                    }));
+                }
+                _ => {
+                    return Err(self.error(&equals, "Invalid assignment target"));
+                }
+            }
+        }
+
+        Ok(expr)
     }
 
     fn equality(&mut self) -> JBreadResult<Expr> {

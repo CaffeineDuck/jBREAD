@@ -37,6 +37,13 @@ define_ast!(
         },
         visit_expr_variable
     ],
+    [
+        Assign {
+            name: Token,
+            value: Box<Expr>
+        },
+        visit_expr_assign
+    ],
 );
 
 define_ast!(

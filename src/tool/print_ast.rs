@@ -40,6 +40,10 @@ impl VisitorExpr for AstPrinter {
     fn visit_expr_variable(&mut self, expr: &crate::ast::Variable) -> Self::Result {
         todo!()
     }
+
+    fn visit_expr_assign(&mut self, expr: &crate::ast::Assign) -> Self::Result {
+        todo!()
+    }
 }
 
 impl VisitorStmt for AstPrinter {
