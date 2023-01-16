@@ -69,4 +69,10 @@ define_ast!(
         },
         visit_stmt_var
     ],
+    [
+        Block {
+            statements: Vec<Stmt>
+        },
+        visit_stmt_block
+    ],
 );

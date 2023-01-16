@@ -1,5 +1,5 @@
 use crate::{
-    ast::{Assign, Binary, Expr, Expression, Literal, Print, Stmt, Unary, Var, Variable},
+    ast::{Assign, Binary, Block, Expr, Expression, Literal, Print, Stmt, Unary, Var, Variable},
     errors::{Error, JBreadErrors, JBreadResult},
     Literal as LiteralEnum, Token, TokenTypes,
 };
@@ -18,6 +18,7 @@ pub trait ParseTrait {
     fn expression_statement(&mut self) -> JBreadResult<Stmt>;
     fn print_statement(&mut self) -> JBreadResult<Stmt>;
     fn decleration(&mut self) -> JBreadResult<Stmt>;
+    fn block_statement(&mut self) -> JBreadResult<Stmt>;
     fn statement(&mut self) -> JBreadResult<Stmt>;
 
     // Actual parsing
@@ -25,13 +26,17 @@ pub trait ParseTrait {
 }
 
 /// This parser implements the following CFG:
+///
+/// STATEMENTS:
 /// program     → declaration* EOF ;
 /// declaration → varDecl | statement ;
 /// varDecl     → "var" IDENTIFIER ( "=" expression )? ";" ;
-/// statement   → exprStmt | printStmt ;
+/// statement   → exprStmt | printStmt | block ;
 /// exprStmt    → expression ";" ;
 /// printStmt   → "print" expression ";" ;
-/// expression  → equality ;
+/// block       → "{" declaration* "}" ;
+///
+/// EXPRESSIONS:
 /// expression  → equality ;
 /// equality    → comparison ( ( "!=" | "==" ) comparison )\* ;
 /// comparison  → term ( ( ">" | ">=" | "<" | "<=" ) term )\* ;
@@ -281,10 +286,21 @@ impl<'a> ParseTrait for Parser<'a> {
         }))
     }
 
+    fn decleration(&mut self) -> JBreadResult<Stmt> {
+        if self.match_token(&[TokenTypes::Var]) {
+            self.var_decleration()
+        } else {
+            self.statement()
+        }
+    }
+
     fn statement(&mut self) -> JBreadResult<Stmt> {
-        match self.match_token(&[TokenTypes::Print]) {
-            true => self.print_statement(),
-            false => self.expression_statement(),
+        if self.match_token(&[TokenTypes::Print]) {
+            self.print_statement()
+        } else if self.match_token(&[TokenTypes::LeftBrace]) {
+            self.block_statement()
+        } else {
+            self.expression_statement()
         }
     }
 
@@ -296,12 +312,13 @@ impl<'a> ParseTrait for Parser<'a> {
         Ok(statements)
     }
 
-    fn decleration(&mut self) -> JBreadResult<Stmt> {
-        if self.match_token(&[TokenTypes::Var]) {
-            self.var_decleration()
-        } else {
-            self.statement()
+    fn block_statement(&mut self) -> JBreadResult<Stmt> {
+        let mut statements = Vec::new();
+        while !self.check(&TokenTypes::RightBrace) && !self.is_at_end() {
+            statements.push(self.decleration()?);
         }
+        self.consume(TokenTypes::RightBrace, "Expect '}' after block.")?;
+        Ok(Stmt::Block(Block { statements }))
     }
 }
 

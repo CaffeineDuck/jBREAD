@@ -1,3 +1,5 @@
+use std::{cell::RefCell, rc::Rc};
+
 use crate::{
     ast::{Expr, Literal, Stmt, VisitorExpr, VisitorStmt},
     errors::{self, JBreadErrors, JBreadResult},
@@ -8,18 +10,22 @@ use crate::{
 pub struct Interpreter {
     // pub globals: HashMap<String, Value>,
     // pub locals: HashMap<String, Value>,
-    pub environment: Environment,
+    pub environment: Rc<RefCell<Environment>>,
 }
 
 impl Default for Interpreter {
     fn default() -> Self {
         Self {
-            environment: Environment::default(),
+            environment: Rc::new(RefCell::new(Environment::default())),
         }
     }
 }
 
 impl Interpreter {
+    fn new(environment: Rc<RefCell<Environment>>) -> Self {
+        Self { environment }
+    }
+
     fn evalute(&mut self, expr: &Expr) -> JBreadResult<Literal> {
         expr.accept(self)
     }
@@ -40,6 +46,18 @@ impl Interpreter {
         for stmt in stmts.iter() {
             self.execute(stmt)?;
         }
+        Ok(())
+    }
+
+    fn execute_block(
+        &self,
+        statements: &[Stmt],
+        environment: Rc<RefCell<Environment>>,
+    ) -> Result<(), JBreadErrors> {
+        let mut interpreter = Interpreter::new(environment);
+        statements
+            .iter()
+            .try_for_each(|stmt| interpreter.execute(stmt))?;
         Ok(())
     }
 }
@@ -125,15 +143,18 @@ impl VisitorExpr for Interpreter {
     }
 
     fn visit_expr_variable(&mut self, expr: &crate::ast::Variable) -> Self::Result {
-        let value = self.environment.get(&expr.name)?;
-        Ok(Literal {
-            value: value.to_owned(),
-        })
+        match self.environment.borrow().get(&expr.name) {
+            Ok(value) => Ok(Literal {
+                value: value.to_owned(),
+            }),
+            Err(err) => Err(err),
+        }
     }
 
     fn visit_expr_assign(&mut self, expr: &crate::ast::Assign) -> Self::Result {
         let evaluated = self.evalute(&expr.value)?;
         self.environment
+            .borrow_mut()
             .assign(&expr.name, evaluated.value.clone())?;
         Ok(evaluated)
     }
@@ -159,8 +180,17 @@ impl VisitorStmt for Interpreter {
             None => Literal { value: None },
         };
 
-        self.environment.define(&stmt.name.lexeme, expr.value);
+        self.environment
+            .borrow_mut()
+            .define(&stmt.name.lexeme, expr.value);
         Ok(())
+    }
+
+    fn visit_stmt_block(&mut self, expr: &crate::ast::Block) -> Self::Result {
+        self.execute_block(
+            &expr.statements,
+            Rc::new(RefCell::new(Environment::new(self.environment.clone()))),
+        )
     }
 }
 

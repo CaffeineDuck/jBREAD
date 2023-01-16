@@ -60,6 +60,10 @@ impl VisitorStmt for AstPrinter {
     fn visit_stmt_var(&mut self, expr: &crate::ast::Var) -> Self::Result {
         todo!()
     }
+
+    fn visit_stmt_block(&mut self, expr: &crate::ast::Block) -> Self::Result {
+        todo!()
+    }
 }
 
 impl AstPrinter {
