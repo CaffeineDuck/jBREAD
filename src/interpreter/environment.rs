@@ -42,7 +42,10 @@ impl Environment {
 
     pub fn get(&self, token: &Token) -> JBreadResult<Option<LiteralEnum>> {
         if let Some(value) = self.values.get(&token.lexeme) {
-            Ok(value.clone())
+            match value {
+                Some(value) => Ok(Some(value.clone())),
+                None => Err(self.error(token)),
+            }
         } else if let Some(enclosed) = &self.encolosing {
             Ok(enclosed.to_owned().borrow().get(token)?.to_owned())
         } else {
