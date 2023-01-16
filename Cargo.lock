@@ -3,16 +3,9 @@
 version = 3
 
 [[package]]
-name = "inner"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d9368e93322f271c5ca078ed2ddcfad3511f1a40f564e522ade34e6e5c8e6680"
-
-[[package]]
 name = "j_bread"
 version = "0.1.0"
 dependencies = [
- "inner",
  "lazy_static",
 ]
 
