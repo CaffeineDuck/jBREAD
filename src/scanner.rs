@@ -17,27 +17,24 @@ pub struct Scanner {
 }
 
 lazy_static! {
-    static ref KEYWORDS_MAP: HashMap<&'static str, TokenTypes> = HashMap::from_iter(
-        vec![
-            ("and", TokenTypes::And),
-            ("class", TokenTypes::Class),
-            ("else", TokenTypes::Else),
-            ("false", TokenTypes::False),
-            ("for", TokenTypes::For),
-            ("fun", TokenTypes::Fun),
-            ("if", TokenTypes::If),
-            ("nil", TokenTypes::Nil),
-            ("or", TokenTypes::Or),
-            ("print", TokenTypes::Print),
-            ("return", TokenTypes::Return),
-            ("super", TokenTypes::Super),
-            ("this", TokenTypes::This),
-            ("true", TokenTypes::True),
-            ("var", TokenTypes::Var),
-            ("while", TokenTypes::While),
-        ]
-        .into_iter()
-    );
+    static ref KEYWORDS_MAP: HashMap<&'static str, TokenTypes> = HashMap::from([
+        ("and", TokenTypes::And),
+        ("class", TokenTypes::Class),
+        ("else", TokenTypes::Else),
+        ("false", TokenTypes::False),
+        ("for", TokenTypes::For),
+        ("fun", TokenTypes::Fun),
+        ("if", TokenTypes::If),
+        ("nil", TokenTypes::Nil),
+        ("or", TokenTypes::Or),
+        ("print", TokenTypes::Print),
+        ("return", TokenTypes::Return),
+        ("super", TokenTypes::Super),
+        ("this", TokenTypes::This),
+        ("true", TokenTypes::True),
+        ("var", TokenTypes::Var),
+        ("while", TokenTypes::While),
+    ]);
 }
 
 impl Default for Scanner {
