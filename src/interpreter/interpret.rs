@@ -196,383 +196,335 @@ impl VisitorStmt for Interpreter {
 
 #[cfg(test)]
 mod tests {
+    use super::{Interpreter, VisitorExpr, VisitorStmt};
     use crate::{
-        ast::{Binary, Expr, Expression, Grouping, Literal, Print, Stmt, Unary},
+        ast::{Assign, Binary, Expr, Grouping, Literal, Print, Unary, Var, Variable},
         Literal as LiteralEnum, Token, TokenTypes,
     };
 
-    use super::Interpreter;
-
     #[test]
     fn test_binary_str_concat() {
-        // let stmt = Expr::Binary(Binary {
-        //     left: Box::new(Expr::Literal(Literal {
-        //         value: Some(LiteralEnum::String("Hello ".to_string())),
-        //     })),
-        //     operator: Token {
-        //         token_type: TokenTypes::Plus,
-        //         lexeme: "+".to_string(),
-        //         literal: None,
-        //         line: 1,
-        //     },
-        //     right: Box::new(Expr::Literal(Literal {
-        //         value: Some(LiteralEnum::String("World!".to_string())),
-        //     })),
-        // });
-        let stmt = Stmt::Print(Print {
-            expression: Box::new(Expr::Binary(Binary {
-                left: Box::new(Expr::Literal(Literal {
-                    value: Some(LiteralEnum::String("Hello ".to_string())),
-                })),
-                operator: Token {
-                    token_type: TokenTypes::Plus,
-                    lexeme: "+".to_string(),
-                    literal: None,
-                    line: 1,
-                },
-                right: Box::new(Expr::Literal(Literal {
-                    value: Some(LiteralEnum::String("World!".to_string())),
-                })),
+        let expr = Binary {
+            left: Box::new(Expr::Literal(Literal {
+                value: Some(LiteralEnum::String("Hello".to_string())),
             })),
-        });
+            operator: Token::new(TokenTypes::Plus, "+".to_string(), None, 1),
+            right: Box::new(Expr::Literal(Literal {
+                value: Some(LiteralEnum::String(" World!".to_string())),
+            })),
+        };
+        let mut interpreter = Interpreter::default();
 
-        let mut interpreter = Interpreter::new();
-        let result = interpreter.interpret(&vec![stmt]);
-
-        assert!(result.is_ok());
+        let parsed_binary_expr = interpreter.visit_expr_binary(&expr);
+        assert!(parsed_binary_expr.is_ok());
         assert_eq!(
-            result.unwrap(),
-            Expr::Literal(Literal {
-                value: Some(LiteralEnum::String("Hello World!".to_string())),
-            })
+            parsed_binary_expr.unwrap().value,
+            Some(LiteralEnum::String("Hello World!".to_string()))
         );
     }
 
     #[test]
     fn test_binary_num_add() {
-        let expr = Expr::Binary(Binary {
+        let expr = Binary {
             left: Box::new(Expr::Literal(Literal {
                 value: Some(LiteralEnum::Number(1.0)),
             })),
-            operator: Token {
-                token_type: TokenTypes::Plus,
-                lexeme: "+".to_string(),
-                literal: None,
-                line: 1,
-            },
+            operator: Token::new(TokenTypes::Plus, "+".to_string(), None, 1),
             right: Box::new(Expr::Literal(Literal {
                 value: Some(LiteralEnum::Number(2.0)),
             })),
-        });
+        };
+        let mut interpreter = Interpreter::default();
 
-        let mut interpreter = Interpreter::new();
-        let result = interpreter.interpret(&expr);
-
-        assert!(result.is_ok());
+        let parsed_binary_expr = interpreter.visit_expr_binary(&expr);
+        assert!(parsed_binary_expr.is_ok());
         assert_eq!(
-            result.unwrap(),
-            Expr::Literal(Literal {
-                value: Some(LiteralEnum::Number(3.0)),
-            })
+            parsed_binary_expr.unwrap().value,
+            Some(LiteralEnum::Number(3.0))
         );
     }
 
     #[test]
     fn test_0_0_division() {
-        let expr = Expr::Binary(Binary {
+        let expr = Binary {
             left: Box::new(Expr::Literal(Literal {
                 value: Some(LiteralEnum::Number(0.0)),
             })),
-            operator: Token {
-                token_type: TokenTypes::Slash,
-                lexeme: "/".to_string(),
-                literal: None,
-                line: 1,
-            },
+            operator: Token::new(TokenTypes::Slash, "/".to_string(), None, 1),
             right: Box::new(Expr::Literal(Literal {
                 value: Some(LiteralEnum::Number(0.0)),
             })),
-        });
+        };
+        let mut interpreter = Interpreter::default();
 
-        let mut interpreter = Interpreter::new();
-        let result = interpreter.interpret(&expr);
-
-        assert!(result.is_ok());
-        assert_eq!(
-            result.unwrap(),
-            Expr::Literal(Literal {
-                value: Some(LiteralEnum::NaN),
-            })
-        );
+        let parsed_binary_expr = interpreter.visit_expr_binary(&expr);
+        assert!(parsed_binary_expr.is_ok());
+        assert_eq!(parsed_binary_expr.unwrap().value, Some(LiteralEnum::NaN));
     }
 
     #[test]
     fn test_binary_multipication() {
-        let expr = Expr::Binary(Binary {
+        let expr = Binary {
             left: Box::new(Expr::Literal(Literal {
                 value: Some(LiteralEnum::Number(2.0)),
             })),
-            operator: Token {
-                token_type: TokenTypes::Star,
-                lexeme: "*".to_string(),
-                literal: None,
-                line: 1,
-            },
+            operator: Token::new(TokenTypes::Star, "*".to_string(), None, 1),
             right: Box::new(Expr::Literal(Literal {
-                value: Some(LiteralEnum::Number(3.0)),
+                value: Some(LiteralEnum::Number(2.0)),
             })),
-        });
+        };
+        let mut interpreter = Interpreter::default();
 
-        let mut interpreter = Interpreter::new();
-        let result = interpreter.interpret(&expr);
-
-        assert!(result.is_ok());
+        let parsed_binary_expr = interpreter.visit_expr_binary(&expr);
+        assert!(parsed_binary_expr.is_ok());
         assert_eq!(
-            result.unwrap(),
-            Expr::Literal(Literal {
-                value: Some(LiteralEnum::Number(6.0)),
-            })
+            parsed_binary_expr.unwrap().value,
+            Some(LiteralEnum::Number(4.0))
         );
     }
 
     #[test]
     fn test_binary_division() {
-        let expr = Expr::Binary(Binary {
+        let expr = Binary {
             left: Box::new(Expr::Literal(Literal {
-                value: Some(LiteralEnum::Number(6.0)),
+                value: Some(LiteralEnum::Number(4.0)),
             })),
-            operator: Token {
-                token_type: TokenTypes::Slash,
-                lexeme: "/".to_string(),
-                literal: None,
-                line: 1,
-            },
+            operator: Token::new(TokenTypes::Slash, "/".to_string(), None, 1),
             right: Box::new(Expr::Literal(Literal {
                 value: Some(LiteralEnum::Number(2.0)),
             })),
-        });
+        };
+        let mut interpreter = Interpreter::default();
 
-        let mut interpreter = Interpreter::new();
-        let result = interpreter.interpret(&expr);
-
-        assert!(result.is_ok());
+        let parsed_binary_expr = interpreter.visit_expr_binary(&expr);
+        assert!(parsed_binary_expr.is_ok());
         assert_eq!(
-            result.unwrap(),
-            Expr::Literal(Literal {
-                value: Some(LiteralEnum::Number(3.0)),
-            })
+            parsed_binary_expr.unwrap().value,
+            Some(LiteralEnum::Number(2.0))
         );
     }
 
     #[test]
     fn test_binary_subtraction() {
-        let expr = Expr::Binary(Binary {
+        let expr = Binary {
             left: Box::new(Expr::Literal(Literal {
-                value: Some(LiteralEnum::Number(6.0)),
+                value: Some(LiteralEnum::Number(4.0)),
             })),
-            operator: Token {
-                token_type: TokenTypes::Minus,
-                lexeme: "-".to_string(),
-                literal: None,
-                line: 1,
-            },
+            operator: Token::new(TokenTypes::Minus, "-".to_string(), None, 1),
             right: Box::new(Expr::Literal(Literal {
                 value: Some(LiteralEnum::Number(2.0)),
             })),
-        });
+        };
+        let mut interpreter = Interpreter::default();
 
-        let mut interpreter = Interpreter::new();
-        let result = interpreter.interpret(&expr);
-
-        assert!(result.is_ok());
+        let parsed_binary_expr = interpreter.visit_expr_binary(&expr);
+        assert!(parsed_binary_expr.is_ok());
         assert_eq!(
-            result.unwrap(),
-            Expr::Literal(Literal {
-                value: Some(LiteralEnum::Number(4.0)),
-            })
+            parsed_binary_expr.unwrap().value,
+            Some(LiteralEnum::Number(2.0))
         );
     }
 
     #[test]
     fn test_binary_greater() {
-        let expr = Expr::Binary(Binary {
+        let expr = Binary {
             left: Box::new(Expr::Literal(Literal {
-                value: Some(LiteralEnum::Number(6.0)),
+                value: Some(LiteralEnum::Number(4.0)),
             })),
-            operator: Token {
-                token_type: TokenTypes::Greater,
-                lexeme: ">".to_string(),
-                literal: None,
-                line: 1,
-            },
+            operator: Token::new(TokenTypes::Greater, ">".to_string(), None, 1),
             right: Box::new(Expr::Literal(Literal {
                 value: Some(LiteralEnum::Number(2.0)),
             })),
-        });
+        };
+        let mut interpreter = Interpreter::default();
 
-        let mut interpreter = Interpreter::new();
-        let result = interpreter.interpret(&expr);
-
-        assert!(result.is_ok());
+        let parsed_binary_expr = interpreter.visit_expr_binary(&expr);
+        assert!(parsed_binary_expr.is_ok());
         assert_eq!(
-            result.unwrap(),
-            Expr::Literal(Literal {
-                value: Some(LiteralEnum::Boolean(true)),
-            })
+            parsed_binary_expr.unwrap().value,
+            Some(LiteralEnum::Boolean(true))
         );
     }
 
     #[test]
     fn test_binary_greater_equal() {
-        let expr = Expr::Binary(Binary {
+        let expr = Binary {
             left: Box::new(Expr::Literal(Literal {
-                value: Some(LiteralEnum::Number(6.0)),
+                value: Some(LiteralEnum::Number(4.0)),
             })),
-            operator: Token {
-                token_type: TokenTypes::GreaterEqual,
-                lexeme: ">=".to_string(),
-                literal: None,
-                line: 1,
-            },
+            operator: Token::new(TokenTypes::GreaterEqual, ">=".to_string(), None, 1),
             right: Box::new(Expr::Literal(Literal {
                 value: Some(LiteralEnum::Number(2.0)),
             })),
-        });
+        };
+        let mut interpreter = Interpreter::default();
 
-        let mut interpreter = Interpreter::new();
-        let result = interpreter.interpret(&expr);
-
-        assert!(result.is_ok());
+        let parsed_binary_expr = interpreter.visit_expr_binary(&expr);
+        assert!(parsed_binary_expr.is_ok());
         assert_eq!(
-            result.unwrap(),
-            Expr::Literal(Literal {
-                value: Some(LiteralEnum::Boolean(true)),
-            })
+            parsed_binary_expr.unwrap().value,
+            Some(LiteralEnum::Boolean(true))
         );
     }
 
     #[test]
     fn test_binary_less() {
-        let expr = Expr::Binary(Binary {
+        let expr = Binary {
             left: Box::new(Expr::Literal(Literal {
-                value: Some(LiteralEnum::Number(6.0)),
+                value: Some(LiteralEnum::Number(4.0)),
             })),
-            operator: Token {
-                token_type: TokenTypes::Less,
-                lexeme: "<".to_string(),
-                literal: None,
-                line: 1,
-            },
+            operator: Token::new(TokenTypes::Less, "<".to_string(), None, 1),
             right: Box::new(Expr::Literal(Literal {
                 value: Some(LiteralEnum::Number(2.0)),
             })),
-        });
+        };
+        let mut interpreter = Interpreter::default();
 
-        let mut interpreter = Interpreter::new();
-        let result = interpreter.interpret(&expr);
-
-        assert!(result.is_ok());
+        let parsed_binary_expr = interpreter.visit_expr_binary(&expr);
+        assert!(parsed_binary_expr.is_ok());
         assert_eq!(
-            result.unwrap(),
-            Expr::Literal(Literal {
-                value: Some(LiteralEnum::Boolean(false)),
-            })
+            parsed_binary_expr.unwrap().value,
+            Some(LiteralEnum::Boolean(false))
         );
     }
 
     #[test]
     fn test_unary_negation() {
-        let expr = Expr::Unary(Unary {
-            operator: Token::new(TokenTypes::Bang, "!".to_string(), None, 1),
-            right: Box::new(Expr::Literal(Literal {
-                value: Some(LiteralEnum::Boolean(true)),
-            })),
-        });
-
-        let mut interpreter = Interpreter::new();
-        let result = interpreter.interpret(&expr);
-
-        assert!(result.is_ok());
-        assert_eq!(
-            result.unwrap(),
-            Expr::Literal(Literal {
-                value: Some(LiteralEnum::Boolean(false)),
-            })
-        );
-    }
-
-    #[test]
-    fn test_unary_subtraction() {
-        let expr = Expr::Unary(Unary {
+        let expr = Unary {
             operator: Token::new(TokenTypes::Minus, "-".to_string(), None, 1),
             right: Box::new(Expr::Literal(Literal {
                 value: Some(LiteralEnum::Number(2.0)),
             })),
-        });
+        };
+        let mut interpreter = Interpreter::default();
 
-        let mut interpreter = Interpreter::new();
-        let result = interpreter.interpret(&expr);
-
-        assert!(result.is_ok());
+        let parsed_unary_expr = interpreter.visit_expr_unary(&expr);
+        assert!(parsed_unary_expr.is_ok());
         assert_eq!(
-            result.unwrap(),
-            Expr::Literal(Literal {
-                value: Some(LiteralEnum::Number(-2.0)),
-            })
+            parsed_unary_expr.unwrap().value,
+            Some(LiteralEnum::Number(-2.0))
         );
     }
 
     #[test]
     fn test_grouping() {
-        let expr = Expr::Grouping(Grouping {
-            expression: Box::new(Expr::Binary(Binary {
-                left: Box::new(Expr::Literal(Literal {
-                    value: Some(LiteralEnum::Number(6.0)),
-                })),
-                operator: Token {
-                    token_type: TokenTypes::Minus,
-                    lexeme: "-".to_string(),
-                    literal: None,
-                    line: 1,
-                },
-                right: Box::new(Expr::Literal(Literal {
-                    value: Some(LiteralEnum::Number(2.0)),
-                })),
+        let expr = Grouping {
+            expression: Box::new(Expr::Literal(Literal {
+                value: Some(LiteralEnum::Number(2.0)),
             })),
-        });
+        };
+        let mut interpreter = Interpreter::default();
 
-        let mut interpreter = Interpreter::new();
-        let result = interpreter.interpret(&expr);
-
-        assert!(result.is_ok());
+        let parsed_grouping_expr = interpreter.visit_expr_grouping(&expr);
+        assert!(parsed_grouping_expr.is_ok());
         assert_eq!(
-            result.unwrap(),
-            Expr::Literal(Literal {
-                value: Some(LiteralEnum::Number(4.0)),
-            })
+            parsed_grouping_expr.unwrap().value,
+            Some(LiteralEnum::Number(2.0))
         );
     }
 
     #[test]
     fn test_string_and_int_addition() {
-        let expr = Expr::Binary(Binary {
+        let expr = Binary {
             left: Box::new(Expr::Literal(Literal {
-                value: Some(LiteralEnum::String("Hello, ".to_string())),
+                value: Some(LiteralEnum::String("Hello".to_string())),
             })),
-            operator: Token {
-                token_type: TokenTypes::Plus,
-                lexeme: "+".to_string(),
-                literal: None,
-                line: 1,
-            },
+            operator: Token::new(TokenTypes::Plus, "+".to_string(), None, 1),
             right: Box::new(Expr::Literal(Literal {
                 value: Some(LiteralEnum::Number(2.0)),
             })),
+        };
+        let mut interpreter = Interpreter::default();
+
+        let parsed_binary_expr = interpreter.visit_expr_binary(&expr);
+        assert!(parsed_binary_expr.is_err());
+    }
+
+    #[test]
+    fn test_var_fetching_without_initalization() {
+        let expr = Variable {
+            name: Token::new(TokenTypes::Identifier, "a".to_string(), None, 1),
+        };
+        let mut interpreter = Interpreter::default();
+
+        let parsed_var_expr = interpreter.visit_expr_variable(&expr);
+        assert!(parsed_var_expr.is_err());
+    }
+
+    #[test]
+    fn test_var_assignment_with_value() {
+        let expr = Variable {
+            name: Token::new(TokenTypes::Identifier, "a".to_string(), None, 1),
+        };
+        let mut interpreter = Interpreter::default();
+        interpreter
+            .environment
+            .borrow_mut()
+            .define("a", Some(LiteralEnum::Number(2.0)));
+
+        let parsed_var_expr = interpreter.visit_expr_variable(&expr);
+        assert!(parsed_var_expr.is_ok());
+        assert_eq!(
+            parsed_var_expr.unwrap().value,
+            Some(LiteralEnum::Number(2.0))
+        );
+    }
+
+    #[test]
+    fn test_var_assignment_with_value_and_assignment() {
+        let expr = Variable {
+            name: Token::new(TokenTypes::Identifier, "a".to_string(), None, 1),
+        };
+        let mut interpreter = Interpreter::default();
+        interpreter
+            .environment
+            .borrow_mut()
+            .define("a", Some(LiteralEnum::Number(2.0)));
+
+        let parsed_var_expr = interpreter.visit_expr_variable(&expr);
+        assert!(parsed_var_expr.is_ok());
+        assert_eq!(
+            parsed_var_expr.unwrap().value,
+            Some(LiteralEnum::Number(2.0))
+        );
+
+        let assignment_expr = Assign {
+            name: Token::new(TokenTypes::Identifier, "a".to_string(), None, 1),
+            value: Box::new(Expr::Literal(Literal {
+                value: Some(LiteralEnum::Number(3.0)),
+            })),
+        };
+        let parsed_assignment_expr = interpreter.visit_expr_assign(&assignment_expr);
+        assert!(parsed_assignment_expr.is_ok());
+        assert_eq!(
+            parsed_assignment_expr.unwrap().value,
+            Some(LiteralEnum::Number(3.0))
+        );
+    }
+
+    #[test]
+    fn test_print_statement() {
+        let expr = Expr::Literal(Literal {
+            value: Some(LiteralEnum::Number(2.0)),
         });
+        let stmt = Print {
+            expression: Box::new(expr),
+        };
+        let mut interpreter = Interpreter::default();
 
-        let mut interpreter = Interpreter::new();
-        let result = interpreter.interpret(&expr);
+        let parsed_print_stmt = interpreter.visit_stmt_print(&stmt);
+        assert!(parsed_print_stmt.is_ok());
+    }
 
-        assert!(result.is_err());
+    #[test]
+    fn test_var_statement() {
+        let stmt = Var {
+            name: Token::new(TokenTypes::Identifier, "a".to_string(), None, 1),
+            initializer: None,
+        };
+        let mut interpreter = Interpreter::default();
+
+        let parsed_var_stmt = interpreter.visit_stmt_var(&stmt);
+        assert!(parsed_var_stmt.is_ok());
     }
 }

@@ -11,7 +11,7 @@ mod token;
 mod tool;
 
 use errors::JBreadErrors;
-use parser::{ParseTrait, Parser};
+use parser::Parser;
 pub use scanner::*;
 pub use token::*;
 pub use tool::*;
@@ -78,8 +78,8 @@ impl JuniorBread {
         };
 
         let ast = ast.unwrap();
-        // let mut ast_printer = AstPrinter::default();
-        // dbg!(ast_printer.print(ast.clone()));
+        dbg!(scanner.scan_tokens());
+        dbg!(&ast);
 
         let result = interpreter.interpret(&ast);
 
@@ -88,7 +88,6 @@ impl JuniorBread {
             Self::set_error();
             return;
         }
-        // dbg!(ast_printer.print(result.unwrap()));
     }
 
     pub fn error(err: JBreadErrors) {
